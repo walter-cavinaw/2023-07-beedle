@@ -426,4 +426,83 @@ contract LenderTest is Test {
         assertEq(debt, 110*10**18);
     }
 
+    function test_front_run_interest_change() public {
+        vm.startPrank(lender1);
+        Pool memory p = Pool({
+            lender: lender1,
+            loanToken: address(loanToken),
+            collateralToken: address(collateralToken),
+            minLoanSize: 1*10**18,
+            poolBalance: 100*10**18,
+            maxLoanRatio: 2*10**18,
+            auctionLength: 1 days,
+            interestRate: 1000,
+            outstandingLoans: 0
+        });
+        bytes32 poolId = lender.setPool(p);
+        vm.warp(block.timestamp + 1 days);
+        vm.stopPrank();
+
+        // borrower tries to borrow
+        Borrow memory b = Borrow({
+            poolId: poolId,
+            debt: 10*10**18,
+            collateral: 100*10**18
+        });
+        Borrow[] memory borrows = new Borrow[](1);
+        borrows[0] = b;
+
+        vm.prank(lender1);
+        lender.updateInterestRate(poolId, 100000);
+        vm.stopPrank();
+        // get the borrower loan terms and check the interest rate
+        vm.prank(borrower);
+        lender.borrow(borrows);
+        // check that emitted event contains the correct interest rate
+        (,,,,,,uint256 interestRate,,,) = lender.loans(0);
+        assertEq(interestRate, 100000);
+        vm.stopPrank();
+    }
+
+    function test_front_run_auction_length() public {
+        vm.startPrank(lender1);
+        Pool memory p = Pool({
+            lender: lender1,
+            loanToken: address(loanToken),
+            collateralToken: address(collateralToken),
+            minLoanSize: 1*10**18,
+            poolBalance: 100*10**18,
+            maxLoanRatio: 2*10**18,
+            auctionLength: 1 days,
+            interestRate: 1000,
+            outstandingLoans: 0
+        });
+        bytes32 poolId = lender.setPool(p);
+        vm.warp(block.timestamp + 1 days);
+        vm.stopPrank();
+
+        // borrower tries to borrow
+        Borrow memory b = Borrow({
+            poolId: poolId,
+            debt: 10*10**18,
+            collateral: 100*10**18
+        });
+        Borrow[] memory borrows = new Borrow[](1);
+        borrows[0] = b;
+
+        vm.prank(lender1);
+        p.auctionLength = 1;
+        lender.setPool(p);
+        vm.stopPrank();
+        // get the borrower loan terms and check the interest rate
+        vm.prank(borrower);
+        lender.borrow(borrows);
+        // check that emitted event contains the correct interest rate
+        vm.startPrank(lender1);
+        lender.startAuction(0);
+        vm.roll(block.number + 1);
+        lender.seizeLoan(0);
+        vm.stopPrank();
+    
+
 }
