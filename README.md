@@ -20,7 +20,7 @@ Possible Areas for bugs:
 
 This should be configurable by the owner instead of hardcoding the address.
 
-2. Swap amounts do not get approved before swap in Fees.sol:
+2. Swap amounts do not get approved before swap in Fees.sol. This will lock collateral tokens in the contract.
 
 3. Swap can only happen on Uniswap v3 pools with fee tier of 0.3%
 
